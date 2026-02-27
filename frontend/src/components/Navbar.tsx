@@ -1,32 +1,47 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { ShoppingBag, LayoutGrid } from 'lucide-react';
 
 const Navbar: React.FC = () => {
-  const [isOpen, setIsOpen] = React.useState(false);
   const location = useLocation();
-  const isActive = (path: string) => location.pathname === path;
 
   return (
-    <nav style={{ backgroundColor: 'var(--surface-color)', padding: '1rem 2rem', boxShadow: 'var(--shadow)', position: 'sticky', top: 0, zIndex: 100 }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: 'var(--primary-color)', fontWeight: 800, fontSize: '1.5rem' }}>
-          <span>ArtisanWeb</span>
+    <nav style={{ 
+      position: 'sticky', top: 0, left: 0, right: 0, zIndex: 1000, 
+      backgroundColor: 'rgba(249, 247, 242, 0.9)', 
+      backdropFilter: 'blur(10px)',
+      borderBottom: '1px solid rgba(0,0,0,0.03)',
+      padding: '2rem 3rem'
+    }}>
+      <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 0 }}>
+        <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <div style={{ width: '40px', height: '40px', background: 'var(--primary-color)', borderRadius: '50%' }}></div>
+          <span style={{ 
+            fontFamily: 'Playfair Display', fontSize: '1.25rem', fontWeight: 900, 
+            letterSpacing: '2px', color: 'var(--secondary-color)', textTransform: 'uppercase' 
+          }}>ARTISAN PORTAL</span>
         </Link>
-        <div className="desktop-nav" style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-          <Link to="/" style={{ textDecoration: 'none', color: isActive('/') ? 'var(--accent-color)' : 'var(--text-primary)', fontWeight: 600 }}>Home</Link>
-          <Link to="/portal" style={{ textDecoration: 'none', color: isActive('/portal') ? 'var(--accent-color)' : 'var(--text-primary)', fontWeight: 600 }}>Artisan Portal</Link>
-          <button className="btn-primary">Join</button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '40px' }}>
+          <Link to="/portal" style={{ 
+            textDecoration: 'none', fontSize: '0.75rem', fontWeight: 800, 
+            letterSpacing: '2px', color: location.pathname === '/portal' ? 'var(--primary-color)' : 'var(--secondary-color)',
+            textTransform: 'uppercase'
+          }}>
+            The Portal
+          </Link>
+          <a href="#" style={{ 
+            textDecoration: 'none', fontSize: '0.75rem', fontWeight: 800, 
+            letterSpacing: '2px', color: 'var(--secondary-color)', textTransform: 'uppercase'
+          }}>
+            Collective
+          </a>
+          <div style={{ position: 'relative' }}>
+             <ShoppingBag size={20} color="var(--secondary-color)" style={{ cursor: 'pointer' }} />
+             <div style={{ position: 'absolute', top: '-8px', right: '-8px', background: 'var(--primary-color)', color: 'white', width: '16px', height: '16px', borderRadius: '50%', fontSize: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>0</div>
+          </div>
         </div>
-        <button className="mobile-menu-btn" onClick={() => setIsOpen(!isOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'none' }}>
-          {isOpen ? 'Close' : 'Menu'}
-        </button>
       </div>
-      {isOpen && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1rem 0', borderTop: '1px solid #eee', marginTop: '1rem' }}>
-          <Link to="/" onClick={() => setIsOpen(false)}>Home</Link>
-          <Link to="/portal" onClick={() => setIsOpen(false)}>Portal</Link>
-        </div>
-      )}
     </nav>
   );
 };

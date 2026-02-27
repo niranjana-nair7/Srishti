@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Mic, Volume2, Save, Trash, CircleCheck, Share, DollarSign } from 'lucide-react';
+import { Camera, Mic, Volume2, Save, Trash, CircleCheck, Share, DollarSign, Loader2, ArrowRight } from 'lucide-react';
 import { calculatePrice } from '../utils/pricing';
 import type { PricingParams } from '../utils/pricing';
 import VisualProcessor from '../components/VisualProcessor';
@@ -9,45 +9,81 @@ const AddProduct: React.FC = () => {
   const [photos, setPhotos] = useState<string[]>([]);
   const [enhancedPhotos, setEnhancedPhotos] = useState<string[]>([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [showShare, setShowShare] = useState(false);
+  const [productData, setProductData] = useState<any>(null);
+  const [isProcessingAudio, setIsProcessingAudio] = useState(false);
+  const [audioExtracted, setAudioExtracted] = useState(false);
+  const [transcript, setTranscript] = useState('');
   
+  const [name, setName] = useState('Handmade Artisan Work');
+  const [artisan, setArtisan] = useState('Local Artisan');
+  const [description, setDescription] = useState('Hand-crafted with traditional techniques.');
   const [pricing, setPricing] = useState<PricingParams>({
     materialCost: 0,
     laborHours: 0,
-    livingWage: 200, // Default for local
+    livingWage: 200,
     tier: 'local',
   });
 
   const mediaRecorderRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Simulate Photo Capture
   const handleCapture = () => {
-    if (photos.length >= 3) return;
-    const placeholder = `https://images.unsplash.com/photo-1590642916589-592bca10dfbf?auto=format&fit=crop&q=80&w=400&h=400`;
-    setPhotos([...photos, placeholder]);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotos([reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
   };
 
   const handleEnhanced = (enhancedImage: string) => {
-    setEnhancedPhotos([...enhancedPhotos, enhancedImage]);
+    setEnhancedPhotos([enhancedImage]);
   };
 
   const toggleRecording = async () => {
     if (!isRecording) {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const recorder = new (window as any).MediaRecorder(stream);
-        const chunks: any[] = [];
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          alert("Speech recognition not supported. Please use Chrome.");
+          return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ml-IN';
+        recognition.interimResults = true;
         
-        recorder.ondataavailable = (e: any) => chunks.push(e.data);
-        recorder.onstop = () => {
-          const blob = new Blob(chunks, { type: 'audio/webm' });
-          setAudioBlob(blob);
+        let finalTranscript = '';
+        recognition.onstart = () => {
+          setIsRecording(true);
+          setAudioExtracted(false);
+          setTranscript('');
         };
-        
-        recorder.start();
-        mediaRecorderRef.current = recorder;
-        setIsRecording(true);
+
+        recognition.onresult = (event: any) => {
+          const currentTranscript = Array.from(event.results)
+            .map((result: any) => result[0])
+            .map((result: any) => result.transcript)
+            .join('');
+          finalTranscript = currentTranscript;
+          setTranscript(currentTranscript);
+        };
+
+        recognition.onend = () => {
+          setIsRecording(false);
+          if (finalTranscript) processTranscript(finalTranscript);
+        };
+
+        recognition.start();
+        mediaRecorderRef.current = recognition;
       } catch (err) {
         console.error("Error accessing mic:", err);
       }
@@ -57,16 +93,105 @@ const AddProduct: React.FC = () => {
     }
   };
 
+  const processTranscript = async (text: string) => {
+    setIsProcessingAudio(true);
+    
+    // Local Fallback logic matching backend's Sequential detection
+    const numWords: Record<string, number> = {
+      'നൂറ്': 100, 'നൂറു': 100, 'അമ്പത്': 50, 'അമ്പതു': 50, 'ഇരുന്നൂറ്': 200, 
+      'അഞ്ഞൂറ്': 500, 'പത്ത്': 10, 'അഞ്ച്': 5, 'എട്ട്': 8, 'ആയിരം': 1000, 'ഒന്ന്': 1
+    };
+    
+    let found: any[] = [];
+    Object.entries(numWords).forEach(([word, val]) => {
+      let idx = text.indexOf(word);
+      while (idx !== -1) {
+        found.push({ pos: idx, val });
+        idx = text.indexOf(word, idx + 1);
+      }
+    });
+    
+    const digits = text.match(/\d+/g) || [];
+    digits.forEach(d => {
+      let idx = text.indexOf(d);
+      while (idx !== -1) {
+        found.push({ pos: idx, val: parseInt(d) });
+        idx = text.indexOf(d, idx + 1);
+      }
+    });
+    
+    found.sort((a, b) => a.pos - b.pos);
+    const unique = found.filter((v, i, a) => a.findIndex(t => t.pos === v.pos) === i);
+    
+    let localCost = unique[0]?.val || 100;
+    let localHours = (unique.find(m => m.val !== localCost)?.val) || 8;
+
+    try {
+      const response = await fetch('http://127.0.0.1:5000/api/translate-extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setPricing(prev => ({
+          ...prev,
+          materialCost: data.extractedData.materialCost,
+          laborHours: data.extractedData.laborHours
+        }));
+        setDescription(data.translatedDescription);
+        setName(data.extractedData.name);
+      }
+    } catch (err) {
+      setPricing(prev => ({ ...prev, materialCost: localCost, laborHours: localHours }));
+    } finally {
+      setIsProcessingAudio(false);
+      setAudioExtracted(true);
+    }
+  };
+
   const calculatedPrice = calculatePrice(pricing);
 
-  if (showShare) {
+  const handleSaveProduct = async () => {
+    const payload = {
+      name,
+      price: calculatedPrice,
+      description: description,
+      imageUrl: enhancedPhotos[0] || photos[0],
+      artisanName: artisan,
+      tier: pricing.tier
+    };
+
+    try {
+      const response = await fetch('http://127.0.0.1:5000/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      if (data.success) {
+        setProductData(data.product);
+        setShowShare(true);
+      }
+    } catch (err) {
+      console.error("Error saving:", err);
+      // Fallback show share even if save fails for demo
+      setProductData(payload);
+      setShowShare(true);
+    }
+  };
+
+  if (showShare && productData) {
     return (
       <ProductShare 
         product={{
-          name: "Hand-woven Basket",
-          price: calculatedPrice,
-          image: enhancedPhotos[0] || photos[0],
-          artisan: "Meera Nair"
+          id: productData.id,
+          name: productData.name,
+          price: productData.price,
+          image: productData.imageUrl,
+          artisan: productData.artisanName,
+          description: productData.description
         }}
         onBack={() => setShowShare(false)}
       />
@@ -74,139 +199,125 @@ const AddProduct: React.FC = () => {
   }
 
   return (
-    <div className="container">
-      <header style={{ marginBottom: '2rem' }}>
-        <h1 style={{ color: 'var(--primary-color)' }}>New Product</h1>
-        <p style={{ color: 'var(--text-secondary)' }}>Zero-input listing for artisans</p>
+    <div className="container" style={{ paddingBottom: '4rem' }}>
+      <input type="file" accept="image/*" capture="environment" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
+      
+      <header style={{ textAlign: 'center', marginBottom: '2.5rem', marginTop: '1rem' }}>
+        <h1 style={{ color: 'var(--primary-color)', fontSize: '2.2rem', fontWeight: 900 }}>Artisan Portal</h1>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', fontWeight: 500 }}>Zero-Input Global Listing</p>
       </header>
 
-      {/* Module 1: Visual Capture */}
-      <section className="card">
-        <h2 className="section-title">Visual Capture</h2>
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '1rem', overflowX: 'auto' }}>
-          {(enhancedPhotos.length > 0 ? enhancedPhotos : photos).map((src, i) => (
-            <div key={i} style={{ position: 'relative' }}>
-              <img src={src} alt="Product" style={{ borderRadius: '12px', width: '100px', height: '100px', objectFit: 'cover' }} />
-              <div style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'var(--accent-color)', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <CircleCheck size={14} color="white" />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem', maxWidth: '480px', margin: '0 auto' }}>
+        
+        {/* STEP 1: PHOTO */}
+        <section 
+          className="card" 
+          style={{ 
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
+            minHeight: '320px', cursor: 'pointer', padding: '0', overflow: 'hidden',
+            border: photos.length > 0 ? '2px solid #e0e0e0' : '3px dashed var(--primary-color)',
+            background: photos.length > 0 ? '#000' : '#fff', position: 'relative'
+          }} 
+          onClick={photos.length > 0 ? undefined : handleCapture}
+        >
+          {photos.length > 0 ? (
+            <>
+              <img src={enhancedPhotos[0] || photos[0]} alt="Product" style={{ width: '100%', height: '320px', objectFit: 'cover' }} />
+              <div style={{ position: 'absolute', bottom: '15px', left: '15px', display: 'flex', gap: '6px' }}>
+                <span style={{ background: 'rgba(0,0,0,0.7)', color: 'white', padding: '4px 10px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 700 }}>{enhancedPhotos.length > 0 ? '✨ STUDIO MAGIC' : 'Captured'}</span>
               </div>
+              <button onClick={(e) => { e.stopPropagation(); setPhotos([]); setEnhancedPhotos([]); setAudioExtracted(false); }} style={{ position: 'absolute', top: '15px', right: '15px', background: 'white', border: 'none', padding: '8px', borderRadius: '50%', boxShadow: '0 2px 10px rgba(0,0,0,0.2)' }}><Trash size={18} color="#ff1744" /></button>
+            </>
+          ) : (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ width: '80px', height: '80px', background: '#f0f4f8', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                <Camera size={36} color="var(--primary-color)" />
+              </div>
+              <h2 style={{ fontSize: '1.2rem', color: 'var(--primary-color)' }}>1. Photo</h2>
+              <p style={{ fontSize: '0.85rem', color: '#888' }}>Tap to capture your work</p>
             </div>
-          ))}
-          {photos.length < 3 && (
-            <button 
-              onClick={handleCapture}
-              style={{ width: '100px', height: '100px', border: '2px dashed #ccc', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', color: '#888' }}
-            >
-              <Camera size={24} />
-              <span style={{ fontSize: '0.75rem', marginTop: '4px' }}>Angle {photos.length + 1}</span>
-            </button>
           )}
-        </div>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          {photos.length}/3 angles captured. Visual guides ensure perfect centering.
-        </p>
-      </section>
+        </section>
 
-      {/* Module 2: Visual Processing (Studio Magic) */}
-      {photos.length > 0 && enhancedPhotos.length === 0 && (
-        <VisualProcessor image={photos[0]} onComplete={handleEnhanced} />
-      )}
-
-      {/* Module 1: Aural Capture */}
-      <section className="card">
-        <h2 className="section-title">Artisan's Narrative</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        {/* STEP 2: VOICE */}
+        <section 
+          className="card" 
+          style={{ 
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
+            minHeight: '220px', backgroundColor: isRecording ? '#fff5f5' : '#fff',
+            border: audioExtracted ? '2px solid #e8f5e9' : '3px dashed var(--secondary-color)',
+            opacity: photos.length > 0 ? 1 : 0.4,
+            pointerEvents: photos.length > 0 ? 'auto' : 'none'
+          }}
+        >
           <button 
-            className={`btn-primary icon-btn ${isRecording ? 'recording-pulse' : ''}`}
             onClick={toggleRecording}
+            className={`icon-btn ${isRecording ? 'recording-pulse' : ''}`}
             style={{ 
-              backgroundColor: isRecording ? '#ef5350' : 'var(--primary-color)',
-              flex: 1,
-              height: '60px',
-              borderRadius: '30px'
+              width: '75px', height: '75px', borderRadius: '50%',
+              backgroundColor: isRecording ? '#ff1744' : 'var(--secondary-color)',
+              color: 'white', marginBottom: '1rem'
             }}
           >
-            {isRecording ? <Volume2 size={24} /> : <Mic size={24} />}
-            {isRecording ? 'Listening...' : 'Press & Speak (Malayalam)'}
+            {isRecording ? <Volume2 size={32} /> : <Mic size={32} />}
           </button>
-        </div>
-        {audioBlob && (
-          <p style={{ marginTop: '0.5rem', color: '#2e7d32', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <CircleCheck size={16} /> Narrative Recorded
-          </p>
+          <h2 style={{ fontSize: '1.2rem', color: 'var(--secondary-color)' }}>{audioExtracted ? 'Voice Processed' : '2. Tell the Story'}</h2>
+          <p style={{ fontSize: '0.8rem', color: '#666', textAlign: 'center' }}>{isRecording ? 'Listening...' : 'Say cost & hours in Malayalam'}</p>
+          
+          {transcript && (
+            <div style={{ marginTop: '1rem', padding: '8px 15px', background: '#f5f5f5', borderRadius: '10px', fontSize: '0.8rem', fontStyle: 'italic', color: '#444' }}>
+              "{transcript}"
+            </div>
+          )}
+        </section>
+
+        {/* AUTO-TRIGGER STUDIO MAGIC COMPONENT */}
+        {photos.length > 0 && enhancedPhotos.length === 0 && (
+          <VisualProcessor image={photos[0]} onComplete={handleEnhanced} />
         )}
-      </section>
 
-      {/* Module 3: Dignity-First Pricing */}
-      <section className="card">
-        <h2 className="section-title">Fair-Trade Pricing</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Material Cost (₹)</label>
-            <input 
-              type="number" 
-              value={pricing.materialCost} 
-              onChange={(e) => setPricing({...pricing, materialCost: Number(e.target.value)})}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Labor Hours</label>
-            <input 
-              type="number" 
-              value={pricing.laborHours} 
-              onChange={(e) => setPricing({...pricing, laborHours: Number(e.target.value)})}
-            />
-          </div>
-        </div>
+        {/* THE PRICE & SHARE SECTION (Reveals after voice) */}
+        {(isProcessingAudio || audioExtracted) && (
+          <section className="card animate-in" style={{ padding: '20px', border: '2px solid var(--primary-color)', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
+            {isProcessingAudio ? (
+              <div style={{ textAlign: 'center', padding: '1rem' }}>
+                <Loader2 className="animate-spin" size={32} color="var(--primary-color)" style={{ margin: '0 auto 1rem' }} />
+                <p style={{ fontWeight: 600 }}>Calculating Fair Price...</p>
+              </div>
+            ) : (
+              <div>
+                <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                  <h3 style={{ fontSize: '1.3rem', color: 'var(--primary-color)', marginBottom: '5px' }}>{name}</h3>
+                  <p style={{ fontSize: '0.9rem', color: '#555', fontStyle: 'italic', lineHeight: 1.4 }}>"{description}"</p>
+                </div>
 
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Selling Tier</label>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {(['local', 'retail', 'premium'] as const).map(t => (
-              <button 
-                key={t}
-                onClick={() => setPricing({...pricing, tier: t})}
-                style={{ 
-                  flex: 1, 
-                  padding: '8px', 
-                  fontSize: '0.85rem',
-                  backgroundColor: pricing.tier === t ? 'var(--primary-color)' : '#f5f5f5',
-                  color: pricing.tier === t ? 'white' : 'var(--text-secondary)',
-                  border: '1px solid #ddd'
-                }}
-              >
-                {t.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                  <div style={{ background: '#f8f9fa', padding: '10px', borderRadius: '12px', textAlign: 'center' }}>
+                    <span style={{ fontSize: '0.65rem', color: '#888', fontWeight: 800 }}>MATERIALS</span>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>₹{pricing.materialCost}</div>
+                  </div>
+                  <div style={{ background: '#f8f9fa', padding: '10px', borderRadius: '12px', textAlign: 'center' }}>
+                    <span style={{ fontSize: '0.65rem', color: '#888', fontWeight: 800 }}>LABOR</span>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{pricing.laborHours}h</div>
+                  </div>
+                </div>
 
-        <div style={{ textAlign: 'center', padding: '1rem', backgroundColor: '#fff8e1', borderRadius: '12px', border: '1px solid #ffe082' }}>
-          <span style={{ fontSize: '0.85rem', color: '#f57f17', fontWeight: 600 }}>RECOMMENDED PRICE</span>
-          <div style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--primary-color)' }}>
-            ₹{calculatedPrice}
-          </div>
-          <p style={{ fontSize: '0.75rem', color: '#f57f17' }}>Protects your labor and ensures a fair living wage.</p>
-        </div>
-      </section>
+                <div style={{ padding: '15px', background: '#fff8e1', borderRadius: '15px', textAlign: 'center', marginBottom: '1.5rem', border: '1px solid #ffe082' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#f57f17', fontWeight: 800 }}>FAIR SELLING PRICE</span>
+                  <div style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--primary-color)' }}>₹{calculatedPrice}</div>
+                </div>
 
-      {/* Module 4: Call to Action */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '2rem' }}>
-        <button className="btn-secondary icon-btn" style={{ padding: '16px' }} onClick={() => {
-          setPhotos([]);
-          setEnhancedPhotos([]);
-          setAudioBlob(null);
-        }}>
-          <Trash size={20} /> Reset
-        </button>
-        <button 
-          className="btn-primary icon-btn" 
-          style={{ padding: '16px' }} 
-          disabled={photos.length === 0}
-          onClick={() => setShowShare(true)}
-        >
-          <Save size={20} /> Save & Share <Share size={20} />
-        </button>
+                <button 
+                  className="btn-primary" 
+                  style={{ width: '100%', padding: '18px', borderRadius: '35px', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
+                  onClick={handleSaveProduct}
+                >
+                  <Save size={20} /> Create Catalog & Share <ArrowRight size={20} />
+                </button>
+              </div>
+            )}
+          </section>
+        )}
       </div>
     </div>
   );

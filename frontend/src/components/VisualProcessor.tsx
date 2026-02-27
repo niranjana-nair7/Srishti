@@ -9,14 +9,40 @@ interface VisualProcessorProps {
 const VisualProcessor: React.FC<VisualProcessorProps> = ({ image, onComplete }) => {
   const [stage, setStage] = useState<'original' | 'processing' | 'enhanced'>('original');
 
-  const processImage = () => {
+  const processImage = async () => {
     setStage('processing');
-    setTimeout(() => {
-      setStage('enhanced');
-      // In a real app, this would be the URL from the background removal/gen-fill API
-      // Here we just use the same image or a slightly modified one
-      onComplete(image); 
-    }, 2500);
+    
+    try {
+      // Convert base64 to blob
+      const base64Data = image.split(',')[1];
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'image/jpeg' });
+
+      const formData = new FormData();
+      formData.append('image', blob, 'product.jpg');
+
+      const response = await fetch('http://127.0.0.1:5000/api/process-image', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setStage('enhanced');
+        onComplete(data.enhancedImageUrl);
+      } else {
+        setStage('original');
+        console.error("Image processing failed:", data.error);
+      }
+    } catch (err) {
+      console.error("Error processing image:", err);
+      setStage('original');
+    }
   };
 
   return (

@@ -26,6 +26,89 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // --- Module 1: Zero-Input Listing (Audio Processing) ---
+app.post('/api/translate-extract', (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'No text provided.' });
+
+  console.log(`[SEMANTIC-LOG] Malayalam Input: "${text}"`);
+
+  // 1. FRACTIONAL & LARGE NUMBER SUPPORT
+  const numMap = [
+    { words: ['ആയിരം', '1000'], val: 1000 },
+    { words: ['അഞ്ഞൂറ്', 'അഞ്ഞൂറു', '500'], val: 500 },
+    { words: ['ഇരുന്നൂറ്', 'ഇരുന്നൂറു', '200'], val: 200 },
+    { words: ['നൂറ്', 'നൂറു', 'നൂറിന്', '100'], val: 100 },
+    { words: ['അമ്പത്', 'അമ്പതു', '50'], val: 50 },
+    { words: ['പത്ത്', 'പത്തു', '10'], val: 10 },
+    { words: ['എട്ട്', 'എട്ടു', '8'], val: 8 },
+    { words: ['അഞ്ച്', 'അഞ്ചു', '5'], val: 5 },
+    { words: ['നാല്', 'നാലു', '4'], val: 4 },
+    { words: ['മൂന്ന്', 'മൂന്നു', '3'], val: 3 },
+    { words: ['രണ്ടര', '2.5'], val: 2.5 },
+    { words: ['രണ്ട്', 'രണ്ടു', '2'], val: 2 },
+    { words: ['ഒന്നര', '1.5'], val: 1.5 },
+    { words: ['ഒന്ന്', 'ഒന്നു', 'ഒരു', '1'], val: 1 },
+    { words: ['പകുതി', '0.5'], val: 0.5 }
+  ];
+
+  // 2. SEMANTIC CATEGORY DETECTION
+  const categories = [
+    { key: 'Basket', words: ['കൊട്ട', 'വട്ടി', 'കുട്ട', 'basket'], material: 'natural bamboo' },
+    { key: 'Mat', words: ['പായ', 'മെത്ത', 'തടുക്ക്', 'mat'], material: 'hand-spun screwpine' },
+    { key: 'Pottery', words: ['ചട്ടി', 'കുടം', 'പാത്രം', 'മൺപാത്രം', 'pot'], material: 'fired terracotta' },
+    { key: 'Woodwork', words: ['തടി', 'മരം', 'ശില്പം', 'കൊത്തുപണി', 'wood'], material: 'reclaimed teak' },
+    { key: 'Textile', words: ['തുണി', 'സാരി', 'മുണ്ട', 'വസ്ത്രം', 'cloth'], material: 'organic cotton' },
+    { key: 'Lamp', words: ['വിളക്ക്', 'ദീപം', 'lamp'], material: 'traditional brass' }
+  ];
+
+  let detectedCategory = categories.find(c => c.words.some(w => text.includes(w))) || { key: 'Handcrafted Item', material: 'local sustainable materials' };
+
+  // 3. SURGICAL EXTRACTION
+  let matches = [];
+  numMap.forEach(item => {
+    item.words.forEach(word => {
+      let index = text.indexOf(word);
+      while (index !== -1) {
+        matches.push({ start: index, end: index + word.length, val: item.val });
+        index = text.indexOf(word, index + 1);
+      }
+    });
+  });
+
+  const filteredMatches = matches.filter((m1, i) => !matches.some((m2, j) => i !== j && m2.start <= m1.start && m2.end >= m1.end && (m2.end - m2.start > m1.end - m1.start)));
+  filteredMatches.sort((a, b) => a.start - b.start);
+
+  const laborKeywords = ['മണിക്കൂർ', 'ദിവസം', 'നേരം', 'സമയം', 'എടുത്തു', 'പണി', 'ദിവസത്തെ', 'മണിക്കൂർകൊണ്ട്'];
+  const costKeywords = ['രൂപ', 'റുപ്പിക', 'ചിലവ്', 'വില', 'വന്നു', 'വാങ്ങി', 'രൂപയുടെ'];
+
+  let materialCost = 0;
+  let laborHours = 0;
+
+  filteredMatches.forEach(m => {
+    const context = text.substring(Math.max(0, m.start - 30), Math.min(text.length, m.end + 30));
+    if (laborKeywords.some(k => context.includes(k)) && laborHours === 0) laborHours = m.val;
+    else if (costKeywords.some(k => context.includes(k)) && materialCost === 0) materialCost = m.val;
+  });
+
+  if (materialCost === 0) materialCost = filteredMatches[0]?.val || 150;
+  if (laborHours === 0) laborHours = (filteredMatches.find(m => m.val !== materialCost)?.val) || 6;
+  if (text.includes('ദിവസം') && laborHours < 7) laborHours *= 8;
+
+  // 4. DYNAMIC NARRATIVE GENERATOR
+  const name = `Artisan ${detectedCategory.key}`;
+  const translatedDescription = `A premium ${detectedCategory.key.toLowerCase()} meticulously handcrafted using ${detectedCategory.material}. Each piece is a result of ${laborHours} hours of dedicated craftsmanship using traditional Kerala techniques.`;
+
+  console.log(`[SEMANTIC-RESULT] Name: ${name}, Cost: ${materialCost}, Hours: ${laborHours}`);
+
+  setTimeout(() => {
+    res.json({
+      success: true,
+      translatedDescription,
+      extractedData: { materialCost, laborHours, name }
+    });
+  }, 500);
+});
+
 app.post('/api/process-audio', upload.single('audio'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No audio file uploaded.' });

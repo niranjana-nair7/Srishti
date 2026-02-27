@@ -3,19 +3,23 @@ import { Share2, MessageCircle, Copy, Globe, ArrowLeft } from 'lucide-react';
 
 interface ProductShareProps {
   product: {
+    id?: string;
     name: string;
     price: number;
     image: string;
     artisan: string;
+    description?: string;
+    tags?: string[];
   };
   onBack: () => void;
 }
 
 const ProductShare: React.FC<ProductShareProps> = ({ product, onBack }) => {
-  const shareUrl = `https://artisan.shop/s/${Math.random().toString(36).substring(7)}`;
+  // Use the actual current host (e.g., http://localhost:3000 or your IP)
+  const shareUrl = `${window.location.origin}/product/${product.id || Math.random().toString(36).substring(7)}`;
 
   const shareToWhatsApp = () => {
-    const text = `Hi! I just finished this hand-woven ${product.name}. You can see the details and price here: ${shareUrl}`;
+    const text = `✨ *New Product Alert* ✨\n\n*${product.name}*\nCrafted by: ${product.artisan}\n\n"${product.description || "Hand-crafted with love."}"\n\n💰 *Price: ₹${product.price}*\n\nView details here: ${shareUrl}\n\nSupport local artisans! 🙏`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -40,13 +44,14 @@ const ProductShare: React.FC<ProductShareProps> = ({ product, onBack }) => {
           
           <div style={{ margin: '1.5rem 0', padding: '1rem', background: '#f5f5f5', borderRadius: '12px' }}>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-              "Hand-woven with sustainable bamboo. Takes 3 days of dedicated craftsmanship."
+              "{product.description || "Hand-crafted by a local artisan with traditional techniques."}"
             </p>
           </div>
 
           <div style={{ display: 'flex', gap: '8px' }}>
-            <span style={{ padding: '4px 12px', background: '#e1f5fe', color: '#0288d1', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 600 }}>Handmade</span>
-            <span style={{ padding: '4px 12px', background: '#e8f5e9', color: '#2e7d32', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 600 }}>Eco-friendly</span>
+            {(product.tags || ['Handmade', 'Eco-friendly']).map(tag => (
+              <span key={tag} style={{ padding: '4px 12px', background: '#e1f5fe', color: '#0288d1', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 600 }}>{tag}</span>
+            ))}
           </div>
         </div>
       </div>
