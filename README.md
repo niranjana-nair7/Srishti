@@ -42,8 +42,7 @@ The application is deployed and can be accessed at:
 
 ## 🎥 Demo Video
 
-[Watch the Demo on YouTube](https://youtu.be/placeholder)
-
+](https://drive.google.com/file/d/1SRiAUKfJEZUw7YECX8L4Dz2fBe5fU5Dp/view?usp=sharing)
 ## 🏗 Architecture
 
 The system uses a modular approach to separate visual processing from semantic translation.
