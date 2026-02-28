@@ -1,4 +1,4 @@
-# ArtisanDignity - AI-Powered Artisan Marketplace
+# Artisan Portal - AI-Powered Artisan Marketplace
 
 ArtisanDignity is a "Boutique-as-a-Service" platform designed specifically for rural artisans in Kerala. It solves the digital barrier by allowing artisans to list products using Malayalam audio and provides a "Studio-in-a-Pocket" to enhance product photography with AI-driven insights. 
 
