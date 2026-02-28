@@ -23,13 +23,14 @@ The core philosophy is **Dignity-First Pricing**, ensuring every artisan is paid
 
 ## 📸 Screenshots
 
-![Marketplace Overview](https://via.placeholder.com/800x450.png?text=Artisan+Marketplace+Overview)
+<img width="1919" height="913" alt="image" src="https://github.com/user-attachments/assets/44572cba-8753-4f78-96d6-bb810add5191" />
+
 *The Boutique Marketplace showcasing handcrafted items with high-resolution imagery.*
 
-![Zero-Input Portal](https://via.placeholder.com/800x450.png?text=AI+Listing+Portal)
+<img width="1918" height="907" alt="image" src="https://github.com/user-attachments/assets/bf6e6ed7-ec6d-48b4-a265-a660a0855f24" />
 *The Artisan Portal where Malayalam audio is translated into professional English listings.*
 
-![Pricing Engine](https://via.placeholder.com/800x450.png?text=Pricing+Transparency+Module)
+<img width="1918" height="904" alt="image" src="https://github.com/user-attachments/assets/56fb916d-92fd-41a4-95d1-b1e77d56aea8" />
 *Transparent breakdown of material costs, labor hours, and living wage calculations.*
 
 ## 🎥 Demo Video
