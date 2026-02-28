@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Mic, Volume2, Save, Trash, CircleCheck, Share, DollarSign, Loader2, ArrowRight } from 'lucide-react';
+import { Camera, Mic, Volume2, Save, Trash, Loader2, ArrowRight } from 'lucide-react';
 import { calculatePrice } from '../utils/pricing';
 import type { PricingParams } from '../utils/pricing';
 import VisualProcessor from '../components/VisualProcessor';
@@ -17,7 +17,7 @@ const AddProduct: React.FC = () => {
   const [visualInsight, setVisualInsight] = useState<any>(null);
   
   const [name, setName] = useState('Handmade Artisan Work');
-  const [artisan, setArtisan] = useState('Local Artisan');
+  const [artisan] = useState('Local Artisan');
   const [description, setDescription] = useState('Hand-crafted with traditional techniques.');
   const [pricing, setPricing] = useState<PricingParams>({
     materialCost: 0,

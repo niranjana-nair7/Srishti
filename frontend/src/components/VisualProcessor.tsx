@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Sparkles, Loader2, Home, CircleCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sparkles, Loader2, CircleCheck } from 'lucide-react';
 
 interface VisualProcessorProps {
   image: string;

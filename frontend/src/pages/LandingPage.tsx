@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, Mic, ArrowRight, UserCircle, Store } from 'lucide-react';
+import { ShoppingBag, Mic, ArrowRight, Store } from 'lucide-react';
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();

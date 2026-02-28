@@ -10,7 +10,11 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+app.use(cors({
+  origin: [frontendUrl, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+  credentials: true
+}));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -161,11 +165,13 @@ app.post('/api/process-image', upload.single('image'), (req, res) => {
 
   const randomInsight = visualInsights[Math.floor(Math.random() * visualInsights.length)];
 
+  const baseUrl = process.env.BASE_URL || `http://localhost:${PORT}`;
+
   setTimeout(() => {
     res.json({
       success: true,
       message: 'Image enhanced successfully',
-      enhancedImageUrl: `http://localhost:${PORT}/uploads/${req.file.filename}`,
+      enhancedImageUrl: `${baseUrl}/uploads/${req.file.filename}`,
       visualInsight: randomInsight,
       status: 'polished'
     });

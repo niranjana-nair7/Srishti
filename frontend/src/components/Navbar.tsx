@@ -1,6 +1,6 @@
 import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LogIn, LogOut, User, LayoutGrid } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { LogOut, User } from 'lucide-react';
 
 interface NavbarProps {
   isAuthenticated?: boolean;
@@ -9,7 +9,6 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ isAuthenticated, onLogout }) => {
   const location = useLocation();
-  const navigate = useNavigate();
 
   return (
     <nav style={{ 
