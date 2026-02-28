@@ -96,8 +96,8 @@ npm run dev
 ```
 
 ## 👥 Team
-- **Development Lead:** [Your Name/Team Name]
-- **Design & UI:** [Designer Name]
+- **Development Lead:** Ridha/HackHers
+- **Design & UI:** Niranjana/HackHers
 
 ## 📜 License
 This project is licensed under the [MIT License](./LICENSE).
