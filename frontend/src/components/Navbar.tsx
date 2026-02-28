@@ -1,9 +1,15 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { ShoppingBag, LayoutGrid } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { LogIn, LogOut, User, LayoutGrid } from 'lucide-react';
 
-const Navbar: React.FC = () => {
+interface NavbarProps {
+  isAuthenticated?: boolean;
+  onLogout?: () => void;
+}
+
+const Navbar: React.FC<NavbarProps> = ({ isAuthenticated, onLogout }) => {
   const location = useLocation();
+  const navigate = useNavigate();
 
   return (
     <nav style={{ 
@@ -11,35 +17,72 @@ const Navbar: React.FC = () => {
       backgroundColor: 'rgba(249, 247, 242, 0.9)', 
       backdropFilter: 'blur(10px)',
       borderBottom: '1px solid rgba(0,0,0,0.03)',
-      padding: '2rem 3rem'
+      padding: '1.5rem 3rem'
     }}>
       <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 0 }}>
         <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ width: '40px', height: '40px', background: 'var(--primary-color)', borderRadius: '50%' }}></div>
+          <div style={{ width: '35px', height: '35px', background: 'var(--primary-color)', borderRadius: '50%' }}></div>
           <span style={{ 
-            fontFamily: 'Playfair Display', fontSize: '1.25rem', fontWeight: 900, 
-            letterSpacing: '2px', color: 'var(--secondary-color)', textTransform: 'uppercase' 
+            fontFamily: 'Playfair Display', fontSize: '1.1rem', fontWeight: 900, 
+            letterSpacing: '1.5px', color: 'var(--secondary-color)', textTransform: 'uppercase' 
           }}>ARTISAN PORTAL</span>
         </Link>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '40px' }}>
-          <Link to="/portal" style={{ 
+        <div style={{ display: 'flex', alignItems: 'center', gap: '30px' }}>
+          {/* COMMON LINKS */}
+          <Link to="/" style={{ 
             textDecoration: 'none', fontSize: '0.75rem', fontWeight: 800, 
-            letterSpacing: '2px', color: location.pathname === '/portal' ? 'var(--primary-color)' : 'var(--secondary-color)',
+            letterSpacing: '1px', color: location.pathname === '/' ? 'var(--primary-color)' : 'var(--secondary-color)',
             textTransform: 'uppercase'
           }}>
-            The Portal
+            Marketplace
           </Link>
-          <a href="#" style={{ 
+          <Link to="/about" style={{ 
             textDecoration: 'none', fontSize: '0.75rem', fontWeight: 800, 
-            letterSpacing: '2px', color: 'var(--secondary-color)', textTransform: 'uppercase'
+            letterSpacing: '1px', color: location.pathname === '/about' ? 'var(--primary-color)' : 'var(--secondary-color)',
+            textTransform: 'uppercase'
           }}>
-            Collective
-          </a>
-          <div style={{ position: 'relative' }}>
-             <ShoppingBag size={20} color="var(--secondary-color)" style={{ cursor: 'pointer' }} />
-             <div style={{ position: 'absolute', top: '-8px', right: '-8px', background: 'var(--primary-color)', color: 'white', width: '16px', height: '16px', borderRadius: '50%', fontSize: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>0</div>
-          </div>
+            About
+          </Link>
+
+          {/* ARTISAN SECTION */}
+          {isAuthenticated ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginLeft: '20px', borderLeft: '1px solid #ddd', paddingLeft: '30px' }}>
+              <Link to="/portal" style={{ 
+                textDecoration: 'none', fontSize: '0.75rem', fontWeight: 800, 
+                letterSpacing: '1px', color: location.pathname === '/portal' ? 'var(--primary-color)' : 'var(--secondary-color)',
+                textTransform: 'uppercase'
+              }}>
+                Add Product
+              </Link>
+              <Link to="/orders" style={{ 
+                textDecoration: 'none', fontSize: '0.75rem', fontWeight: 800, 
+                letterSpacing: '1px', color: location.pathname === '/orders' ? 'var(--primary-color)' : 'var(--secondary-color)',
+                textTransform: 'uppercase'
+              }}>
+                My Orders
+              </Link>
+              <button 
+                onClick={onLogout}
+                style={{ 
+                  background: 'none', fontSize: '0.75rem', fontWeight: 800, 
+                  color: '#888', textTransform: 'uppercase', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '5px'
+                }}
+              >
+                <LogOut size={16} /> Logout
+              </button>
+            </div>
+          ) : (
+            <Link to="/login" style={{ 
+              textDecoration: 'none', fontSize: '0.75rem', fontWeight: 800, 
+              letterSpacing: '1px', color: 'var(--primary-color)', textTransform: 'uppercase',
+              display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid var(--primary-color)',
+              padding: '10px 20px', borderRadius: '30px'
+            }}>
+              <User size={16} /> Artisan Login
+            </Link>
+          )}
         </div>
       </div>
     </nav>

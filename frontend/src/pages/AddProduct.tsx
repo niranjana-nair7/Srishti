@@ -14,6 +14,7 @@ const AddProduct: React.FC = () => {
   const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const [audioExtracted, setAudioExtracted] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [visualInsight, setVisualInsight] = useState<any>(null);
   
   const [name, setName] = useState('Handmade Artisan Work');
   const [artisan, setArtisan] = useState('Local Artisan');
@@ -44,8 +45,15 @@ const AddProduct: React.FC = () => {
     e.target.value = '';
   };
 
-  const handleEnhanced = (enhancedImage: string) => {
+  const handleEnhanced = (enhancedImage: string, insight?: any) => {
     setEnhancedPhotos([enhancedImage]);
+    if (insight) {
+      setVisualInsight(insight);
+      // If we already have a transcript, re-process it with the new visual data
+      if (transcript && transcript !== 'Listening...' && !isRecording) {
+        processTranscript(transcript, insight);
+      }
+    }
   };
 
   const toggleRecording = async () => {
@@ -59,78 +67,72 @@ const AddProduct: React.FC = () => {
 
         const recognition = new SpeechRecognition();
         recognition.lang = 'ml-IN';
-        recognition.interimResults = true;
+        recognition.continuous = false; // Changed to false for better 'end' detection
+        recognition.interimResults = false; // Only final result
         
         let finalTranscript = '';
         recognition.onstart = () => {
           setIsRecording(true);
           setAudioExtracted(false);
-          setTranscript('');
+          setTranscript('Listening...');
         };
 
         recognition.onresult = (event: any) => {
-          const currentTranscript = Array.from(event.results)
-            .map((result: any) => result[0])
-            .map((result: any) => result.transcript)
-            .join('');
-          finalTranscript = currentTranscript;
-          setTranscript(currentTranscript);
+          const result = event.results[0][0].transcript;
+          finalTranscript = result;
+          setTranscript(result);
+        };
+
+        recognition.onerror = (event: any) => {
+          console.error("Speech error", event.error);
+          setIsRecording(false);
+          if (event.error === 'no-speech') {
+            setTranscript('No speech detected. Please try again.');
+          }
         };
 
         recognition.onend = () => {
           setIsRecording(false);
-          if (finalTranscript) processTranscript(finalTranscript);
+          if (finalTranscript) {
+            processTranscript(finalTranscript);
+          } else if (isRecording) {
+            setTranscript('Still listening...');
+          }
         };
 
         recognition.start();
         mediaRecorderRef.current = recognition;
+
+        // Auto-stop after 8 seconds to prevent hanging
+        setTimeout(() => {
+          if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+          }
+        }, 8000);
+
       } catch (err) {
         console.error("Error accessing mic:", err);
       }
     } else {
-      mediaRecorderRef.current?.stop();
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stop();
+      }
       setIsRecording(false);
     }
   };
 
-  const processTranscript = async (text: string) => {
+  const processTranscript = async (text: string, currentInsight?: any) => {
     setIsProcessingAudio(true);
+    // CRITICAL: Always prefer the passed insight, otherwise use the state
+    const insightToUse = currentInsight !== undefined ? currentInsight : visualInsight;
     
-    // Local Fallback logic matching backend's Sequential detection
-    const numWords: Record<string, number> = {
-      'നൂറ്': 100, 'നൂറു': 100, 'അമ്പത്': 50, 'അമ്പതു': 50, 'ഇരുന്നൂറ്': 200, 
-      'അഞ്ഞൂറ്': 500, 'പത്ത്': 10, 'അഞ്ച്': 5, 'എട്ട്': 8, 'ആയിരം': 1000, 'ഒന്ന്': 1
-    };
-    
-    let found: any[] = [];
-    Object.entries(numWords).forEach(([word, val]) => {
-      let idx = text.indexOf(word);
-      while (idx !== -1) {
-        found.push({ pos: idx, val });
-        idx = text.indexOf(word, idx + 1);
-      }
-    });
-    
-    const digits = text.match(/\d+/g) || [];
-    digits.forEach(d => {
-      let idx = text.indexOf(d);
-      while (idx !== -1) {
-        found.push({ pos: idx, val: parseInt(d) });
-        idx = text.indexOf(d, idx + 1);
-      }
-    });
-    
-    found.sort((a, b) => a.pos - b.pos);
-    const unique = found.filter((v, i, a) => a.findIndex(t => t.pos === v.pos) === i);
-    
-    let localCost = unique[0]?.val || 100;
-    let localHours = (unique.find(m => m.val !== localCost)?.val) || 8;
+    console.log("Processing with insight:", insightToUse);
 
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/translate-extract', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/translate-extract`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
+        body: JSON.stringify({ text, visualInsight: insightToUse })
       });
       const data = await response.json();
       
@@ -144,7 +146,7 @@ const AddProduct: React.FC = () => {
         setName(data.extractedData.name);
       }
     } catch (err) {
-      setPricing(prev => ({ ...prev, materialCost: localCost, laborHours: localHours }));
+      console.error("Transcription processing error:", err);
     } finally {
       setIsProcessingAudio(false);
       setAudioExtracted(true);
@@ -164,7 +166,7 @@ const AddProduct: React.FC = () => {
     };
 
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/products', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -262,7 +264,7 @@ const AddProduct: React.FC = () => {
             {isRecording ? <Volume2 size={32} /> : <Mic size={32} />}
           </button>
           <h2 style={{ fontSize: '1.2rem', color: 'var(--secondary-color)' }}>{audioExtracted ? 'Voice Processed' : '2. Tell the Story'}</h2>
-          <p style={{ fontSize: '0.8rem', color: '#666', textAlign: 'center' }}>{isRecording ? 'Listening...' : 'Say cost & hours in Malayalam'}</p>
+          <p style={{ fontSize: '0.8rem', color: '#666', textAlign: 'center' }}>{isRecording ? 'Listening...' : 'Say product type, cost & hours in Malayalam'}</p>
           
           {transcript && (
             <div style={{ marginTop: '1rem', padding: '8px 15px', background: '#f5f5f5', borderRadius: '10px', fontSize: '0.8rem', fontStyle: 'italic', color: '#444' }}>
@@ -282,13 +284,29 @@ const AddProduct: React.FC = () => {
             {isProcessingAudio ? (
               <div style={{ textAlign: 'center', padding: '1rem' }}>
                 <Loader2 className="animate-spin" size={32} color="var(--primary-color)" style={{ margin: '0 auto 1rem' }} />
-                <p style={{ fontWeight: 600 }}>Calculating Fair Price...</p>
+                <p style={{ fontWeight: 600 }}>Translating Malayalam Narration...</p>
+                <p style={{ fontSize: '0.75rem', color: '#888', marginTop: '5px' }}>Calculating fair-trade pricing & cataloging...</p>
               </div>
             ) : (
               <div>
                 <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                  <h3 style={{ fontSize: '1.3rem', color: 'var(--primary-color)', marginBottom: '5px' }}>{name}</h3>
-                  <p style={{ fontSize: '0.9rem', color: '#555', fontStyle: 'italic', lineHeight: 1.4 }}>"{description}"</p>
+                  <input 
+                    style={{ 
+                      fontSize: '1.3rem', color: 'var(--primary-color)', marginBottom: '10px', width: '100%', 
+                      textAlign: 'center', border: '1px solid #eee', padding: '5px', borderRadius: '5px' 
+                    }}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                  <textarea 
+                    style={{ 
+                      fontSize: '0.9rem', color: '#555', fontStyle: 'italic', lineHeight: 1.4, width: '100%',
+                      minHeight: '80px', border: '1px solid #eee', padding: '8px', borderRadius: '5px',
+                      fontFamily: 'inherit', textAlign: 'center'
+                    }}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>

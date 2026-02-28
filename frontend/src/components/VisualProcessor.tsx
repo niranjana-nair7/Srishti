@@ -3,7 +3,7 @@ import { Sparkles, Loader2, Home, CircleCheck } from 'lucide-react';
 
 interface VisualProcessorProps {
   image: string;
-  onComplete: (enhancedImage: string) => void;
+  onComplete: (enhancedImage: string, visualInsight?: any) => void;
 }
 
 const VisualProcessor: React.FC<VisualProcessorProps> = ({ image, onComplete }) => {
@@ -26,7 +26,7 @@ const VisualProcessor: React.FC<VisualProcessorProps> = ({ image, onComplete }) 
       const formData = new FormData();
       formData.append('image', blob, 'product.jpg');
 
-      const response = await fetch('http://127.0.0.1:5000/api/process-image', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/process-image`, {
         method: 'POST',
         body: formData
       });
@@ -34,7 +34,7 @@ const VisualProcessor: React.FC<VisualProcessorProps> = ({ image, onComplete }) 
 
       if (data.success) {
         setStage('enhanced');
-        onComplete(data.enhancedImageUrl);
+        onComplete(data.enhancedImageUrl, data.visualInsight);
       } else {
         setStage('original');
         console.error("Image processing failed:", data.error);
