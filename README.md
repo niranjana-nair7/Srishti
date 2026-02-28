@@ -4,6 +4,13 @@ ArtisanDignity is a "Boutique-as-a-Service" platform designed specifically for r
 
 The core philosophy is **Dignity-First Pricing**, ensuring every artisan is paid a fair living wage for their labor, with transparent pricing models for local, retail, and premium markets.
 
+## 🌐 Live Demo
+
+The application is deployed and can be accessed at:
+**[https://artisan-portal-vack.onrender.com](https://artisan-portal-vack.onrender.com)**
+
+---
+
 ## 🛠 Tech Stack
 
 - **Frontend:** React 19, TypeScript, Vite, React Router 7, Lucide Icons, Vanilla CSS (Custom Boutique Theme).
